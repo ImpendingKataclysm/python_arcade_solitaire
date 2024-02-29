@@ -1,4 +1,5 @@
 import arcade
+import random
 import constants as c
 from card import Card
 
@@ -27,6 +28,15 @@ class Game(arcade.Window):
                 card = Card(suit, value, c.CARD_SCALE)
                 card.position = c.START_X, c.BOTTOM_Y
                 self.card_deck.append(card)
+
+    def shuffle_deck(self):
+        """
+        Shuffles the deck of cards by taking each card and swapping its position
+        with that of another, randomly selected card.
+        """
+        for pos1 in range(len(self.card_deck)):
+            pos2 = random.randrange(len(self.card_deck))
+            self.card_deck.swap(pos1, pos2)
 
     def define_card_mat(self):
         """
@@ -74,12 +84,13 @@ class Game(arcade.Window):
 
     def setup(self):
         """
-        Create and shuffle the deck of cards and display the initial game state.
+        Create the deck of cards and display the initial game state.
         """
         self.held_cards = []
         self.held_cards_initial_position = []
 
         self.create_deck()
+        self.shuffle_deck()
         self.create_card_mats()
 
     def on_draw(self):
