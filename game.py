@@ -131,6 +131,35 @@ class Game(arcade.Window):
             card.center_x += dx
             card.center_y += dy
 
+    def update_card_position(self):
+        """
+        Checks to see if the held card is touching a mat sprite or a card sprite.
+        If the card is touching another sprite, its position is updated to match
+        the closest card mat's position, otherwise the card is sent back to its
+        initial position.
+        """
+        card_pile, distance = arcade.get_closest_sprite(
+            self.held_cards[0],
+            self.card_mats
+        )
+
+        card_sprite, sprite_distance = arcade.get_closest_sprite(
+            self.held_cards[0],
+            self.card_deck
+        )
+
+        reset_position = True
+
+        if arcade.check_for_collision(self.held_cards[0], card_pile):
+            for i, card in enumerate(self.held_cards):
+                card.position = card_pile.center_x, card_pile.center_y
+
+            reset_position = False
+
+        if reset_position:
+            for i, card in enumerate(self.held_cards):
+                card.position = self.held_cards_initial_position[i]
+
     def on_mouse_release(self, x: float, y: float, button: int, key_modifiers: int):
         """
         Release any currently held cards.
@@ -140,4 +169,5 @@ class Game(arcade.Window):
         :param key_modifiers:
         """
         if len(self.held_cards) > 0:
+            self.update_card_position()
             self.held_cards = []
