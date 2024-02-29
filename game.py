@@ -11,6 +11,7 @@ class Game(arcade.Window):
         self.card_deck = None
         self.held_cards = None
         self.held_cards_initial_position = None
+        self.card_mats = None
 
         super().__init__(c.SCREEN_WIDTH, c.SCREEN_HEIGHT, c.SCREEN_TITLE)
         arcade.set_background_color(arcade.color.CERULEAN_FROST)
@@ -27,6 +28,50 @@ class Game(arcade.Window):
                 card.position = c.START_X, c.BOTTOM_Y
                 self.card_deck.append(card)
 
+    def define_card_mat(self):
+        """
+        Create a slate blue card mat sprite with the preset width and height.
+        :return: The new card mat sprite
+        """
+        return arcade.SpriteSolidColor(
+            int(c.CARD_MAT_WIDTH),
+            int(c.CARD_MAT_HEIGHT),
+            arcade.csscolor.MIDNIGHT_BLUE
+        )
+
+    def create_card_row(self, row_len, y):
+        """
+        Create a new row of card piles
+        :param row_len: The number of card piles in the row
+        :param y: The y-axis position of the row
+        """
+        for i in range(row_len):
+            pile = self.define_card_mat()
+            pile.position = c.START_X + i * c.X_SPACING, y
+            self.card_mats.append(pile)
+
+    def create_card_mats(self):
+        """
+        Create the rows of card mat sprites on which the cards will be rendered.
+        """
+        self.card_mats: arcade.SpriteList = arcade.SpriteList()
+        pile = self.define_card_mat()
+
+        # Create bottom face down pile
+        pile.position = c.START_X, c.BOTTOM_Y
+        self.card_mats.append(pile)
+
+        # Create bottom face up pile
+        pile = self.define_card_mat()
+        pile.position = c.START_X + c.X_SPACING, c.BOTTOM_Y
+        self.card_mats.append(pile)
+
+        # Create the 7 middle piles
+        self.create_card_row(c.MIDDLE_ROW_LEN, c.MIDDLE_Y)
+
+        # Create the top 4 piles
+        self.create_card_row(c.TOP_ROW_LEN, c.TOP_Y)
+
     def setup(self):
         """
         Create and shuffle the deck of cards and display the initial game state.
@@ -35,6 +80,7 @@ class Game(arcade.Window):
         self.held_cards_initial_position = []
 
         self.create_deck()
+        self.create_card_mats()
 
     def on_draw(self):
         """
@@ -43,6 +89,7 @@ class Game(arcade.Window):
         :return:
         """
         self.clear()
+        self.card_mats.draw()
         self.card_deck.draw()
 
     def pull_card_to_top(self, card: arcade.Sprite):
