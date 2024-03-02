@@ -13,6 +13,7 @@ class Game(arcade.Window):
         self.held_cards = None
         self.held_cards_initial_position = None
         self.card_mats = None
+        self.card_piles = None
 
         super().__init__(c.SCREEN_WIDTH, c.SCREEN_HEIGHT, c.SCREEN_TITLE)
         arcade.set_background_color(arcade.color.CERULEAN_FROST)
@@ -82,16 +83,55 @@ class Game(arcade.Window):
         # Create the top 4 piles
         self.create_card_row(c.TOP_ROW_LEN, c.TOP_Y)
 
+    def get_pile_for_card(self, card):
+        """
+        Identify the index for a given card from a pile list
+        :param card: The card whose index to search for
+        :return: The card's index in the pile list, or None if the card is not
+        present
+        """
+        for i, pile in enumerate(self.card_piles):
+            if card in pile:
+                return i
+
+        return None
+
+    def remove_card_from_pile(self, card):
+        """
+        Searches the card piles for the given card, and removes the card from
+        its pile if found.
+        :param card: The card to search for and remove
+        """
+        for pile in self.card_piles:
+            if card in pile:
+                pile.remove(card)
+                break
+
+    def move_card_to_pile(self, card, pile_index):
+        """
+        Move a given card from its current pile to a new one.
+        :param card: The card to move
+        :param pile_index: The index of the new pile where the card is being moved
+        """
+        self.remove_card_from_pile(card)
+        self.card_piles[pile_index].append(card)
+
     def setup(self):
         """
-        Create the deck of cards and display the initial game state.
+        Create the deck of cards and display the initial game state: all the
+        rows are dealt out with the remaining cards in the bottom face down
+        pile.
         """
         self.held_cards = []
         self.held_cards_initial_position = []
+        self.card_piles = [[] for _ in range(c.PILE_COUNT)]
 
         self.create_deck()
         self.shuffle_deck()
         self.create_card_mats()
+
+        for card in self.card_deck:
+            self.card_piles[c.BOTTOM_FACE_DOWN_PILE].append(card)
 
     def on_draw(self):
         """
@@ -142,6 +182,27 @@ class Game(arcade.Window):
             card.center_x += dx
             card.center_y += dy
 
+    def play_to_middle(self, pile_index, card_pile):
+        """
+        Moves the currently held card(s) from their current pile to a new pile
+        in the middle play area.
+        :param pile_index: The index of the pile to which the card is being moved.
+        :param card_pile: The Sprite for the pile on which the card sprite is
+        placed
+        """
+        if len(self.card_piles[pile_index]) > 0:
+            top_card = self.card_piles[pile_index][-1]
+
+            for i, dropped_card in enumerate(self.held_cards):
+                dropped_card.position = top_card.center_x, \
+                                        top_card.center_y - c.CARD_VERTICAL_FAN * (i + 1)
+                self.move_card_to_pile(dropped_card, pile_index)
+        else:
+            for i, dropped_card in enumerate(self.held_cards):
+                dropped_card.position = card_pile.center_x, \
+                                        card_pile.center_y - c.CARD_VERTICAL_FAN * i
+                self.move_card_to_pile(dropped_card, pile_index)
+
     def update_card_position(self):
         """
         Checks to see if the held card is touching a mat sprite or a card sprite.
@@ -149,23 +210,39 @@ class Game(arcade.Window):
         the closest card mat's position, otherwise the card is sent back to its
         initial position.
         """
-        card_pile, distance = arcade.get_closest_sprite(
-            self.held_cards[0],
+        primary_held_card = self.held_cards[0]
+
+        closest_card_pile, distance = arcade.get_closest_sprite(
+            primary_held_card,
             self.card_mats
         )
 
-        card_sprite, sprite_distance = arcade.get_closest_sprite(
-            self.held_cards[0],
-            self.card_deck
+        other_card_sprites = arcade.SpriteList()
+        for card in self.card_deck:
+            if card != primary_held_card:
+                other_card_sprites.append(card)
+
+        closest_card_sprite, sprite_distance = arcade.get_closest_sprite(
+            primary_held_card,
+            other_card_sprites
         )
 
         reset_position = True
 
-        if arcade.check_for_collision(self.held_cards[0], card_pile):
-            for i, card in enumerate(self.held_cards):
-                card.position = card_pile.center_x, card_pile.center_y
+        if arcade.check_for_collision(primary_held_card, closest_card_pile) \
+                or arcade.check_for_collision(primary_held_card, closest_card_sprite):
+            pile_index = self.card_mats.index(closest_card_pile)
 
-            reset_position = False
+            if pile_index == self.get_pile_for_card(primary_held_card):
+                pass
+            elif c.MIDDLE_PILE_1 <= pile_index <= c.MIDDLE_PILE_7:
+                self.play_to_middle(pile_index, closest_card_pile)
+                reset_position = False
+            elif c.TOP_PILE_1 <= pile_index <= c.TOP_PILE_4:
+                if len(self.held_cards) == 1:
+                    primary_held_card.position = closest_card_pile.center_x, closest_card_pile.center_y
+                    self.move_card_to_pile(primary_held_card, pile_index)
+                    reset_position = False
 
         if reset_position:
             for i, card in enumerate(self.held_cards):
@@ -181,4 +258,5 @@ class Game(arcade.Window):
         """
         if len(self.held_cards) > 0:
             self.update_card_position()
+
             self.held_cards = []
