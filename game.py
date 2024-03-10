@@ -293,6 +293,13 @@ class Game(arcade.Window):
                 reset_position = self.play_to_top(closest_card_pile)
             # For testing purposes only
             elif c.BOTTOM_FACE_UP_PILE == pile_index:
+                card_pile = self.card_mats[pile_index]
+                self.move_success(
+                    primary_held_card,
+                    card_pile,
+                    closest_card_pile.center_x,
+                    closest_card_pile.center_y
+                )
                 reset_position = False
 
         if reset_position:
@@ -346,6 +353,15 @@ class Game(arcade.Window):
 
                 self.pull_card_to_top(self.held_cards[0])
 
+                card_pile = self.card_piles[pile_index]
+                card_index = card_pile.index(primary_card)
+
+                for i in range(card_index + 1, len(card_pile)):
+                    card = card_pile[i]
+                    self.held_cards.append(card)
+                    self.held_cards_initial_position.append(card.position)
+                    self.pull_card_to_top(card)
+
     def on_mouse_motion(self, x: float, y: float, dx: float, dy: float):
         """
         Drag any held card sprites when the user moves the mouse while holding
@@ -371,3 +387,5 @@ class Game(arcade.Window):
             self.update_card_position()
 
             self.held_cards = []
+            print('no held cards')
+            print(len(self.held_cards))
