@@ -8,6 +8,7 @@ class Game(arcade.Window):
     """
     Main window in which the game is displayed and played.
     """
+
     def __init__(self):
         self.card_deck = None
         self.held_cards = None
@@ -116,33 +117,6 @@ class Game(arcade.Window):
         self.remove_card_from_pile(card)
         self.card_piles[pile_index].append(card)
 
-    def setup(self):
-        """
-        Create the deck of cards and display the initial game state: all the
-        rows are dealt out with the remaining cards in the bottom face down
-        pile.
-        """
-        self.held_cards = []
-        self.held_cards_initial_position = []
-        self.card_piles = [[] for _ in range(c.PILE_COUNT)]
-
-        self.create_deck()
-        self.shuffle_deck()
-        self.create_card_mats()
-
-        for card in self.card_deck:
-            self.card_piles[c.BOTTOM_FACE_DOWN_PILE].append(card)
-
-    def on_draw(self):
-        """
-        Clear any sprites that are currently rendered and render all sprites in
-        their initial positions.
-        :return:
-        """
-        self.clear()
-        self.card_mats.draw()
-        self.card_deck.draw()
-
     def pull_card_to_top(self, card: arcade.Sprite):
         """
         Pulls the selected card to the top of the list
@@ -151,57 +125,135 @@ class Game(arcade.Window):
         self.card_deck.remove(card)
         self.card_deck.append(card)
 
-    def on_mouse_press(self, x: float, y: float, button: int, key_modifiers: int):
+    def validate_color(self, pile_index):
         """
-        Tracks mouse button presses and responds when the user clicks a card
-        sprite or a card mat sprite.
-        :param x: The x-coordinate of the clicked location
-        :param y: The y-coordinate of the clicked location
-        :param button: The mouse button
-        :param key_modifiers:
+        Check that the currently held card is the opposite color from the top
+        card on its new pile.
+        :param pile_index: The pile on which the card is being placed
+        :return: True if the colors do not match (move is valid), False if not
         """
-        clicked_cards = arcade.get_sprites_at_point((x, y), self.card_deck)
+        top_card_suit = self.card_piles[pile_index][-1].suit
+        held_card_suit = self.held_cards[0].suit
+        red_on_black = held_card_suit in c.RED_SUITS and top_card_suit in c.BLACK_SUITS
+        black_on_red = held_card_suit in c.BLACK_SUITS and top_card_suit in c.RED_SUITS
 
-        if len(clicked_cards) > 0:
-            primary_card = clicked_cards[-1]
-            self.held_cards = [primary_card]
-            self.held_cards_initial_position = [self.held_cards[0].position]
+        return red_on_black or black_on_red
 
-            self.pull_card_to_top(self.held_cards[0])
+    def check_card_order(self, top_card):
+        """
+        Get the difference in positions (indices) of the top card's value and
+        the currently held card's value.
+        :param top_card: The top card in the pile to which the held card is
+        being moved
+        :return: The difference between the top card value index and the held
+        card value index
+        """
+        top_card_index = c.CARD_VALUES.index(top_card.value)
+        held_card_index = c.CARD_VALUES.index(self.held_cards[0].value)
 
-    def on_mouse_motion(self, x: float, y: float, dx: float, dy: float):
-        """
-        Drag any held card sprites when the user moves the mouse while holding
-        the button.
-        :param x: The mouse's starting x-coordinate
-        :param y: The mouse's starting y-coordinate
-        :param dx: Change in horizontal distance
-        :param dy: Change in vertical distance
-        """
-        for card in self.held_cards:
-            card.center_x += dx
-            card.center_y += dy
+        return top_card_index - held_card_index
 
-    def play_to_middle(self, pile_index, card_pile):
+    def move_success(self, card, card_pile, new_x, new_y):
         """
-        Moves the currently held card(s) from their current pile to a new pile
-        in the middle play area.
-        :param pile_index: The index of the pile to which the card is being moved.
+        Moves a selected card to a new pile by updating the card sprite's
+        position and moving the sprite to the list corresponding to the new pile.
+        :param card: The card being moved
+        :param card_pile: The pile to which the card is being moved
+        :param new_x: The card's updated x coordinate
+        :param new_y: The card's updated y coordinate
+        """
+        pile_index = self.card_mats.index(card_pile)
+        card.position = new_x, new_y
+        self.move_card_to_pile(card, pile_index)
+
+    def play_to_middle(self, card_pile):
+        """
+        Checks the validity of moves to the middle play section. For a move to pass:
+        1. The card cannot be an Ace.
+        2. If the new pile is empty, the card must be a King.
+        3. If the new pile is not empty:
+        - The top card must be the opposite color of the played card
+        - The played card must be 1 value lower than the top card
         :param card_pile: The Sprite for the pile on which the card sprite is
         placed
+        :return: True if the move is valid, False if not
         """
-        if len(self.card_piles[pile_index]) > 0:
+        reset_move = True
+        pile_index = self.card_mats.index(card_pile)
+
+        if self.held_cards[0].value == 'A':
+            pass
+        elif len(self.card_piles[pile_index]) > 0:
             top_card = self.card_piles[pile_index][-1]
 
-            for i, dropped_card in enumerate(self.held_cards):
-                dropped_card.position = top_card.center_x, \
-                                        top_card.center_y - c.CARD_VERTICAL_FAN * (i + 1)
-                self.move_card_to_pile(dropped_card, pile_index)
+            if self.validate_color(pile_index) \
+                    and self.check_card_order(top_card) == 1:
+                for i, dropped_card in enumerate(self.held_cards):
+                    fan_offset = c.CARD_VERTICAL_FAN * (i + 1)
+                    self.move_success(
+                        dropped_card,
+                        card_pile,
+                        top_card.center_x,
+                        top_card.center_y - fan_offset
+                    )
+
+                reset_move = False
         else:
-            for i, dropped_card in enumerate(self.held_cards):
-                dropped_card.position = card_pile.center_x, \
-                                        card_pile.center_y - c.CARD_VERTICAL_FAN * i
-                self.move_card_to_pile(dropped_card, pile_index)
+            if self.held_cards[0].value == 'K':
+                for i, dropped_card in enumerate(self.held_cards):
+                    fan_offset = c.CARD_VERTICAL_FAN * i
+                    self.move_success(
+                        dropped_card,
+                        card_pile,
+                        card_pile.center_x,
+                        card_pile.center_y - fan_offset
+                    )
+
+                reset_move = False
+
+        return reset_move
+
+    def play_to_top(self, card_pile):
+        """
+        Checks the validity of moves to the top play section. For a move to pass:
+        1. If the new pile is empty, the card must be an Ace.
+        2. If the new pile is not empty:
+        - The top card must be the same suit as the played card
+        - The played card must be 1 value higher than the top card
+        :param card_pile: The Sprite for the pile on which the card sprite is
+        placed.
+        :return: True if the move is valid, false if not
+        """
+        reset_position = True
+        primary_held_card = self.held_cards[0]
+        pile_index = self.card_mats.index(card_pile)
+        new_pile = self.card_piles[pile_index]
+
+        if len(self.held_cards) == 1:
+            if len(new_pile) == 0:
+                if primary_held_card.value == 'A':
+                    self.move_success(
+                        primary_held_card,
+                        card_pile,
+                        card_pile.center_x,
+                        card_pile.center_y
+                    )
+
+                    reset_position = False
+            else:
+                top_card = self.card_piles[pile_index][-1]
+                if self.check_card_order(top_card) == -1 \
+                        and top_card.suit == primary_held_card.suit:
+                    self.move_success(
+                        primary_held_card,
+                        card_pile,
+                        card_pile.center_x,
+                        card_pile.center_y
+                    )
+
+                    reset_position = False
+
+        return reset_position
 
     def update_card_position(self):
         """
@@ -236,17 +288,76 @@ class Game(arcade.Window):
             if pile_index == self.get_pile_for_card(primary_held_card):
                 pass
             elif c.MIDDLE_PILE_1 <= pile_index <= c.MIDDLE_PILE_7:
-                self.play_to_middle(pile_index, closest_card_pile)
-                reset_position = False
+                reset_position = self.play_to_middle(closest_card_pile)
             elif c.TOP_PILE_1 <= pile_index <= c.TOP_PILE_4:
-                if len(self.held_cards) == 1:
-                    primary_held_card.position = closest_card_pile.center_x, closest_card_pile.center_y
-                    self.move_card_to_pile(primary_held_card, pile_index)
-                    reset_position = False
+                reset_position = self.play_to_top(closest_card_pile)
+            # For testing purposes only
+            elif c.BOTTOM_FACE_UP_PILE == pile_index:
+                reset_position = False
 
         if reset_position:
             for i, card in enumerate(self.held_cards):
                 card.position = self.held_cards_initial_position[i]
+
+    def setup(self):
+        """
+        Create the deck of cards and display the initial game state: all the
+        rows are dealt out with the remaining cards in the bottom face down
+        pile.
+        """
+        self.held_cards = []
+        self.held_cards_initial_position = []
+        self.card_piles = [[] for _ in range(c.PILE_COUNT)]
+
+        self.create_deck()
+        self.shuffle_deck()
+        self.create_card_mats()
+
+        for card in self.card_deck:
+            self.card_piles[c.BOTTOM_FACE_DOWN_PILE].append(card)
+
+    def on_draw(self):
+        """
+        Clear any sprites that are currently rendered and render all sprites in
+        their initial positions.
+        """
+        self.clear()
+        self.card_mats.draw()
+        self.card_deck.draw()
+
+    def on_mouse_press(self, x: float, y: float, button: int, key_modifiers: int):
+        """
+        Registers a clicked card sprite as a held card so that it can be dragged
+        and dropped, provided that the card is not in the top row.
+        :param x: The x-coordinate of the clicked location
+        :param y: The y-coordinate of the clicked location
+        :param button: The mouse button
+        :param key_modifiers:
+        """
+        clicked_cards = arcade.get_sprites_at_point((x, y), self.card_deck)
+
+        if len(clicked_cards) > 0:
+            primary_card = clicked_cards[-1]
+            pile_index = self.get_pile_for_card(primary_card)
+
+            if pile_index < c.TOP_PILE_1:
+                self.held_cards = [primary_card]
+                self.held_cards_initial_position = [self.held_cards[0].position]
+
+                self.pull_card_to_top(self.held_cards[0])
+
+    def on_mouse_motion(self, x: float, y: float, dx: float, dy: float):
+        """
+        Drag any held card sprites when the user moves the mouse while holding
+        the button.
+        :param x: The mouse's starting x-coordinate
+        :param y: The mouse's starting y-coordinate
+        :param dx: Change in horizontal distance
+        :param dy: Change in vertical distance
+        """
+        for card in self.held_cards:
+            card.center_x += dx
+            card.center_y += dy
 
     def on_mouse_release(self, x: float, y: float, button: int, key_modifiers: int):
         """
