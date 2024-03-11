@@ -64,22 +64,20 @@ class Game(arcade.Window):
     def create_card_mats(self):
         """
         Create the rows of card mat sprites on which the cards will be rendered.
+        These include: the bottom face down pile, the bottom face down pile, the
+        7 middle piles and the 4 top piles.
         """
-        pile = self.define_card_mat()
+        bottom_fdown_pile = self.define_card_mat()
 
-        # Create bottom face down pile
-        pile.position = c.START_X, c.BOTTOM_Y
-        self.card_mats.append(pile)
+        bottom_fdown_pile.position = c.START_X, c.BOTTOM_Y
+        self.card_mats.append(bottom_fdown_pile)
 
-        # Create bottom face up pile
         pile = self.define_card_mat()
         pile.position = c.START_X + c.X_SPACING, c.BOTTOM_Y
         self.card_mats.append(pile)
 
-        # Create the 7 middle piles
         self.create_card_row(c.MIDDLE_ROW_LEN, c.MIDDLE_Y)
 
-        # Create the top 4 piles
         self.create_card_row(c.TOP_ROW_LEN, c.TOP_Y)
 
     def get_pile_for_card(self, card):
@@ -398,17 +396,20 @@ class Game(arcade.Window):
             if pile_index == c.BOTTOM_FACE_DOWN_PILE:
                 self.draw_cards_with_skip(card_pile)
             elif pile_index < c.TOP_PILE_1:
-                self.held_cards = [primary_card]
-                self.held_cards_initial_position = [self.held_cards[0].position]
-                self.pull_card_to_top(self.held_cards[0])
+                if primary_card.is_face_down and len(card_pile) - card_pile.index(primary_card) == 1:
+                    primary_card.turn_face_up()
+                else:
+                    self.held_cards = [primary_card]
+                    self.held_cards_initial_position = [self.held_cards[0].position]
+                    self.pull_card_to_top(self.held_cards[0])
 
-                card_index = card_pile.index(primary_card)
+                    card_index = card_pile.index(primary_card)
 
-                for i in range(card_index + 1, len(card_pile)):
-                    card = card_pile[i]
-                    self.held_cards.append(card)
-                    self.held_cards_initial_position.append(card.position)
-                    self.pull_card_to_top(card)
+                    for i in range(card_index + 1, len(card_pile)):
+                        card = card_pile[i]
+                        self.held_cards.append(card)
+                        self.held_cards_initial_position.append(card.position)
+                        self.pull_card_to_top(card)
         else:
             clicked_mats = arcade.get_sprites_at_point((x, y), self.card_mats)
 
