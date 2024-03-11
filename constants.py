@@ -15,13 +15,14 @@ CARD_MAT_OVERSIZE_PERCENT = 1.25
 CARD_MAT_WIDTH = CARD_MAT_OVERSIZE_PERCENT * CARD_WIDTH
 CARD_MAT_HEIGHT = CARD_MAT_OVERSIZE_PERCENT * CARD_HEIGHT
 
-# Card Images
+# Card Display
 CARD_VALUES = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K']
 RED_SUITS = ['Hearts', 'Diamonds']
 BLACK_SUITS = ['Spades', 'Clubs']
 CARD_SUITS = RED_SUITS + BLACK_SUITS
 CARD_IMAGE_PATH = ':resources:images/cards/card'
 FACE_DOWN_IMAGE = ':resources:images/cards/cardBack_blue5.png'
+CARDS_TO_SKIP = 3
 
 # Card Row Spacing/Positioning
 HORIZONTAL_MARGIN_PERCENT = 0.1

@@ -8,7 +8,6 @@ class Game(arcade.Window):
     """
     Main window in which the game is displayed and played.
     """
-
     def __init__(self):
         self.card_deck = None
         self.held_cards = None
@@ -152,7 +151,7 @@ class Game(arcade.Window):
 
         return top_card_index - held_card_index
 
-    def move_success(self, card, card_pile, new_x, new_y):
+    def move_card(self, card, card_pile, new_x, new_y):
         """
         Moves a selected card to a new pile by updating the card sprite's
         position and moving the sprite to the list corresponding to the new pile.
@@ -189,7 +188,7 @@ class Game(arcade.Window):
                     and self.check_card_order(top_card) == 1:
                 for i, dropped_card in enumerate(self.held_cards):
                     fan_offset = c.CARD_VERTICAL_FAN * (i + 1)
-                    self.move_success(
+                    self.move_card(
                         dropped_card,
                         card_pile,
                         top_card.center_x,
@@ -201,7 +200,7 @@ class Game(arcade.Window):
             if self.held_cards[0].value == 'K':
                 for i, dropped_card in enumerate(self.held_cards):
                     fan_offset = c.CARD_VERTICAL_FAN * i
-                    self.move_success(
+                    self.move_card(
                         dropped_card,
                         card_pile,
                         card_pile.center_x,
@@ -231,7 +230,7 @@ class Game(arcade.Window):
         if len(self.held_cards) == 1:
             if len(new_pile) == 0:
                 if primary_held_card.value == 'A':
-                    self.move_success(
+                    self.move_card(
                         primary_held_card,
                         card_pile,
                         card_pile.center_x,
@@ -243,7 +242,7 @@ class Game(arcade.Window):
                 top_card = self.card_piles[pile_index][-1]
                 if self.check_card_order(top_card) == -1 \
                         and top_card.suit == primary_held_card.suit:
-                    self.move_success(
+                    self.move_card(
                         primary_held_card,
                         card_pile,
                         card_pile.center_x,
@@ -290,20 +289,54 @@ class Game(arcade.Window):
                 reset_position = self.play_to_middle(closest_card_pile)
             elif c.TOP_PILE_1 <= pile_index <= c.TOP_PILE_4:
                 reset_position = self.play_to_top(closest_card_pile)
-            # For testing purposes only
-            elif c.BOTTOM_FACE_UP_PILE == pile_index:
-                card_pile = self.card_mats[pile_index]
-                self.move_success(
-                    primary_held_card,
-                    card_pile,
-                    closest_card_pile.center_x,
-                    closest_card_pile.center_y
-                )
-                reset_position = False
 
         if reset_position:
             for i, card in enumerate(self.held_cards):
                 card.position = self.held_cards_initial_position[i]
+
+    def draw_cards_with_skip(self, card_pile):
+        """
+        Draws CARDS_TO_SKIP cards from the bottom face down mat and places them face up
+        on the bottom face up mat, with the last card on top.
+        :param card_pile: The card pile from which the cards are drawn
+        """
+        card_mat = self.card_mats[c.BOTTOM_FACE_UP_PILE]
+        for i in range(c.CARDS_TO_SKIP):
+            if len(card_pile) == 0:
+                break
+            top_card = card_pile[-1]
+            top_card.turn_face_up()
+            self.move_card(
+                top_card,
+                card_mat,
+                card_mat.center_x,
+                card_mat.center_y
+            )
+            self.pull_card_to_top(top_card)
+
+    def flip_deck(self, mat_index):
+        """
+        Flips the deck back to the bottom left (face down) pile when all cards
+        have been moved to the bottom right (face up) pile.
+        :param mat_index: The index indicating the mat which has been clicked
+        (the function only runs when the mat in the bottom left corner is clicked
+        while empty).
+        """
+        bottom_left_pile = self.card_piles[c.BOTTOM_FACE_DOWN_PILE]
+        bottom_right_pile = self.card_piles[c.BOTTOM_FACE_UP_PILE]
+        bottom_left_mat = self.card_mats[c.BOTTOM_FACE_DOWN_PILE]
+
+        if mat_index == c.BOTTOM_FACE_DOWN_PILE and len(bottom_left_pile) == 0:
+            temp_list = bottom_right_pile.copy()
+
+            for card in reversed(temp_list):
+                card.turn_face_down()
+                self.move_card(
+                    card,
+                    bottom_left_mat,
+                    bottom_left_mat.center_x,
+                    bottom_left_mat.center_y
+                )
 
     def setup(self):
         """
@@ -330,7 +363,7 @@ class Game(arcade.Window):
 
                 fan_offset = c.CARD_VERTICAL_FAN * i
                 card.position = self.card_mats[pile_index].center_x, \
-                    self.card_mats[pile_index].center_y - fan_offset
+                                self.card_mats[pile_index].center_y - fan_offset
 
                 self.pull_card_to_top(card)
 
@@ -360,15 +393,15 @@ class Game(arcade.Window):
         if len(clicked_cards) > 0:
             primary_card = clicked_cards[-1]
             pile_index = self.get_pile_for_card(primary_card)
+            card_pile = self.card_piles[pile_index]
 
-            if pile_index < c.TOP_PILE_1:
+            if pile_index == c.BOTTOM_FACE_DOWN_PILE:
+                self.draw_cards_with_skip(card_pile)
+            elif pile_index < c.TOP_PILE_1:
                 self.held_cards = [primary_card]
-
                 self.held_cards_initial_position = [self.held_cards[0].position]
-
                 self.pull_card_to_top(self.held_cards[0])
 
-                card_pile = self.card_piles[pile_index]
                 card_index = card_pile.index(primary_card)
 
                 for i in range(card_index + 1, len(card_pile)):
@@ -376,6 +409,13 @@ class Game(arcade.Window):
                     self.held_cards.append(card)
                     self.held_cards_initial_position.append(card.position)
                     self.pull_card_to_top(card)
+        else:
+            clicked_mats = arcade.get_sprites_at_point((x, y), self.card_mats)
+
+            if len(clicked_mats) > 0:
+                mat = clicked_mats[0]
+                mat_index = self.card_mats.index(mat)
+                self.flip_deck(mat_index)
 
     def on_mouse_motion(self, x: float, y: float, dx: float, dy: float):
         """
@@ -402,3 +442,12 @@ class Game(arcade.Window):
             self.update_card_position()
 
             self.held_cards = []
+
+    def on_key_press(self, symbol: int, modifiers: int):
+        """
+        Restarts the game when the user presses 'R'.
+        :param symbol: The key entered by the user
+        :param modifiers:
+        """
+        if symbol == arcade.key.R:
+            self.setup()
