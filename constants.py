@@ -21,6 +21,7 @@ RED_SUITS = ['Hearts', 'Diamonds']
 BLACK_SUITS = ['Spades', 'Clubs']
 CARD_SUITS = RED_SUITS + BLACK_SUITS
 CARD_IMAGE_PATH = ':resources:images/cards/card'
+FACE_DOWN_IMAGE = ':resources:images/cards/cardBack_blue5.png'
 
 # Card Row Spacing/Positioning
 HORIZONTAL_MARGIN_PERCENT = 0.1

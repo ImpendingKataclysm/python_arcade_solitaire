@@ -66,7 +66,6 @@ class Game(arcade.Window):
         """
         Create the rows of card mat sprites on which the cards will be rendered.
         """
-        self.card_mats: arcade.SpriteList = arcade.SpriteList()
         pile = self.define_card_mat()
 
         # Create bottom face down pile
@@ -315,6 +314,7 @@ class Game(arcade.Window):
         self.held_cards = []
         self.held_cards_initial_position = []
         self.card_piles = [[] for _ in range(c.PILE_COUNT)]
+        self.card_mats: arcade.SpriteList = arcade.SpriteList()
 
         self.create_deck()
         self.shuffle_deck()
@@ -322,6 +322,20 @@ class Game(arcade.Window):
 
         for card in self.card_deck:
             self.card_piles[c.BOTTOM_FACE_DOWN_PILE].append(card)
+
+        for pile_index in range(c.MIDDLE_PILE_1, c.MIDDLE_PILE_7 + 1):
+            for i in range(pile_index - c.MIDDLE_PILE_1 + 1):
+                card = self.card_piles[c.BOTTOM_FACE_DOWN_PILE].pop()
+                self.card_piles[pile_index].append(card)
+
+                fan_offset = c.CARD_VERTICAL_FAN * i
+                card.position = self.card_mats[pile_index].center_x, \
+                    self.card_mats[pile_index].center_y - fan_offset
+
+                self.pull_card_to_top(card)
+
+            last_card = self.card_piles[pile_index][-1]
+            last_card.turn_face_up()
 
     def on_draw(self):
         """
@@ -349,6 +363,7 @@ class Game(arcade.Window):
 
             if pile_index < c.TOP_PILE_1:
                 self.held_cards = [primary_card]
+
                 self.held_cards_initial_position = [self.held_cards[0].position]
 
                 self.pull_card_to_top(self.held_cards[0])
@@ -387,5 +402,3 @@ class Game(arcade.Window):
             self.update_card_position()
 
             self.held_cards = []
-            print('no held cards')
-            print(len(self.held_cards))
