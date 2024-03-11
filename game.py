@@ -177,7 +177,7 @@ class Game(arcade.Window):
         reset_move = True
         pile_index = self.card_mats.index(card_pile)
 
-        if self.held_cards[0].value == 'A':
+        if self.held_cards[0].value == 'A' or self.held_cards[0].is_face_down:
             pass
         elif len(self.card_piles[pile_index]) > 0:
             top_card = self.card_piles[pile_index][-1]
